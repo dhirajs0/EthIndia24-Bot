@@ -1,0 +1,25 @@
+{
+    "name": "eth-india24-bot",
+    "version": "1.0.0",
+    "main": "src/app.js",
+    "type": "module",
+    "scripts": {
+        "start": "node src/app.js"
+    },
+    "author": "Sayan Kar",
+    "license": "MIT",
+    "dependencies": {
+        "@coinbase/coinbase-sdk": "^0.11.2",
+        "@polkadot/api": "^15.0.1",
+        "@polkadot/keyring": "^13.2.3",
+        "@polkadot/util-crypto": "^13.2.3",
+        "axios": "^1.6.7",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.1",
+        "redis": "^4.7.0"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    },
+    "keywords": []
+}
