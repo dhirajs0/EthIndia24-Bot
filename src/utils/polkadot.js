@@ -3,6 +3,7 @@ import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { Keyring } from "@polkadot/keyring";
 import { saveToCache, getFromCache } from "../services/redisClient.js"; 
 import { deploy } from "./deploy_meme_token.js";
+
 const url = "wss://ws.test.azero.dev";
 const wsProvider = new WsProvider(url); // Replace with your node's WebSocket URL
 const api = await ApiPromise.create({ provider: wsProvider });
@@ -22,7 +23,10 @@ export const createWallet = async (userId) => {
     console.log("Wallet created with address:", JSON.stringify(pair));
     // Store the mnemonic in Redis
     await saveToCache(`wallet:${userId}:mnemonic`, mnemonic);
-    await transferFunds(address);
+    const cachedData = await getFromCache(`addressBook`);
+    const existingContracts = cachedData ? JSON.parse(cachedData) : [];
+    await saveToCache(`addressBook`, JSON.stringify([{ address, userId }, ...(existingContracts || [])]));
+    await transferFunds(process.env.POLKADOT_MEMONICS, address);
     return { address }; // Return the address
   } catch (error) {
     console.error("Error creating wallet:", error);
@@ -47,9 +51,8 @@ export const getWallet = async (userId) => {
   }
 };
 
-export const transferFunds = async (recipientAddress, amount = 5_000_000_000_000) => {
+export const transferFunds = async (mnemonic, recipientAddress, amount = 100_000_000_000_000) => {
     try {
-      const mnemonic = process.env.POLKADOT_MEMONICS;
       console.log("mnemonic: ", mnemonic);
   
       // Create keyring and add sender account from mnemonic
@@ -134,7 +137,7 @@ export const deployMEMECoin = async (userId, name, symbol, token_uri, desc, tota
 
         const cachedData = await getFromCache(`contracts:${userId}:erc20`);
         const existingContracts = cachedData ? JSON.parse(cachedData) : [];
-        await saveToCache(`contracts:${userId}:erc20`, JSON.stringify([contractAddress, ...(existingContracts || [])]));
+        await saveToCache(`contracts:${userId}:erc20`, JSON.stringify([{contractAddress, name, symbol, desc}, ...(existingContracts || [])]));
         console.log("Deployed contract address:", contractAddress);
         return contractAddress;
     } catch (error) {
