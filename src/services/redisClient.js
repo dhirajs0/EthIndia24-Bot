@@ -14,11 +14,11 @@ export const connectRedis = async () => {
   }
 };
 
-export const saveAuthToken = async (key, value) => {
+export const saveToCache = async (key, value) => {
   await redisClient.set(key, value);
 };
 
-export const getAuthToken = async (key) => {
+export const getFromCache = async (key) => {
   return await redisClient.get(key);
 };
 

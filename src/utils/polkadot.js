@@ -1,26 +1,27 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 import { Keyring } from "@polkadot/keyring";
-import { saveAuthToken, getAuthToken } from "../services/redisClient.js"; 
-
-const wsProvider = new WsProvider("wss://ws.test.azero.dev"); // Replace with your node's WebSocket URL
+import { saveToCache, getFromCache } from "../services/redisClient.js"; 
+import { deploy } from "./deploy_meme_token.js";
+const url = "wss://ws.test.azero.dev";
+const wsProvider = new WsProvider(url); // Replace with your node's WebSocket URL
 const api = await ApiPromise.create({ provider: wsProvider });
 console.log("Connected to Polkadot chain.");
 
 // Create a wallet for the user and store the mnemonic in Redis
 export const createWallet = async (userId) => {
   try {
-    const cacheMnemonic = await getAuthToken(`wallet:${userId}:mnemonic`);
+    const cacheMnemonic = await getFromCache(`wallet:${userId}:mnemonic`);
     if (cacheMnemonic) {
         return { ...(await getWallet(userId)), cached: true} ;
     }
     const mnemonic = mnemonicGenerate();
-    const keyring = new Keyring({ type: "sr25519" });
+    const keyring = new Keyring();
     const pair = keyring.addFromMnemonic(mnemonic);
     const address = pair.address;
     console.log("Wallet created with address:", JSON.stringify(pair));
     // Store the mnemonic in Redis
-    await saveAuthToken(`wallet:${userId}:mnemonic`, mnemonic);
+    await saveToCache(`wallet:${userId}:mnemonic`, mnemonic);
     await transferFunds(address);
     return { address }; // Return the address
   } catch (error) {
@@ -32,12 +33,12 @@ export const createWallet = async (userId) => {
 // Retrieve the wallet address for the user from Redis
 export const getWallet = async (userId) => {
   try {
-    const mnemonic = await getAuthToken(`wallet:${userId}:mnemonic`);
+    const mnemonic = await getFromCache(`wallet:${userId}:mnemonic`);
     if (!mnemonic) {
       throw new Error("No wallet found for the user.");
     }
 
-    const keyring = new Keyring({ type: "sr25519" });
+    const keyring = new Keyring();
     const pair = keyring.addFromMnemonic(mnemonic);
     return { address: pair.address, mnemonic };
   } catch (error) {
@@ -124,3 +125,20 @@ export const getNativeBalance = async (userId) => {
       throw new Error("Failed to retrieve balance.");
     } 
 };
+
+export const deployMEMECoin = async (userId, name, symbol, token_uri, desc, total_supply) => {
+    try {
+        const { address, mnemonic } = await getWallet(userId);
+        console.log("Deploying contract from address:", address);
+        const contractAddress = await deploy(mnemonic, url, name, symbol, token_uri, desc, total_supply === '-' ? undefined: BigInt(total_supply));
+
+        const cachedData = await getFromCache(`contracts:${userId}:erc20`);
+        const existingContracts = cachedData ? JSON.parse(cachedData) : [];
+        await saveToCache(`contracts:${userId}:erc20`, JSON.stringify([contractAddress, ...(existingContracts || [])]));
+        console.log("Deployed contract address:", contractAddress);
+        return contractAddress;
+    } catch (error) {
+        console.error("Error deploying contract:", error);
+        throw new Error("Failed to deploy contract.");
+    }
+}
