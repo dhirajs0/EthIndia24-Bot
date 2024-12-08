@@ -49,3 +49,9 @@ A WhatsApp-based chatbot that can interact with cryptocurrency platforms using t
     - Wallet data is stored locally.
     - Implements CDP's secure wallet management.
     - Uses environment variables for sensitive credentials.
+
+### Screenshots
+
+<!-- <img src="/agentkit_whatsapp_bot/img/screenshot-actions.jpeg" alt="onchain actions" width="500"> -->
+![Screenshot Description](/agentkit_whatsapp_bot/img/screenshot.jpeg)
+![Screenshot Description](/agentkit_whatsapp_bot/img/screenshot-actions.jpeg)
