@@ -3,6 +3,7 @@ import { LegacyClient, WsProvider } from 'dedot'
 import { ContractDeployer } from 'dedot/contracts'
 import { stringToHex } from 'dedot/utils'
 import { readFile } from 'fs/promises'
+import { Contract } from 'dedot/contracts'
 
 
 export async function deploy(deployer_key, rpc_url, name, symbol, token_uri, desc, total_supply = BigInt(1000000)) {
@@ -61,4 +62,43 @@ export async function deploy(deployer_key, rpc_url, name, symbol, token_uri, des
   }
 
   return waitForResponse()
+}
+
+export async function mint(deployer_key, memeTokenAddress, beneficiary) {
+    console.log('Minting MEME token', memeTokenAddress, 'to', beneficiary)
+    // Destructure environment variables
+    const {
+      WASM_PATH,
+      ABI_PATH,
+    } = process.env
+    if (
+      !WASM_PATH ||
+      !ABI_PATH
+    ) {
+      throw new Error('Missing environment variables')
+    }
+    const rpc_url = "wss://ws.test.azero.dev";
+
+    // instanciate an api client
+    const provider = new WsProvider(rpc_url)
+    const client = await LegacyClient.new({
+        provider,
+        cacheMetadata: false,
+    })
+  
+    // create a Contract instance
+    const abi = JSON.parse(await readFile(ABI_PATH,'utf-8'))
+    const contract = new Contract(client, abi, memeTokenAddress)
+  
+    // Dry run
+    const signer = new Keyring().createFromUri(deployer_key)
+    const { raw } = await contract.query.mint(beneficiary, { caller: signer.address })
+  
+    await contract.tx.mint(beneficiary, { gasLimit: raw.gasRequired })
+    .signAndSend(signer, ({ status, events}) => { 
+      if (status.type === 'BestChainBlockIncluded' || status.type === 'Finalized') {
+        const transferEvent = contract.events["erc20::erc20::Transfer"].find(events);
+        console.log('EVENT --> ', transferEvent.name);
+      }    
+    });
 }

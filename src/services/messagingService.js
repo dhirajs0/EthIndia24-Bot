@@ -1,6 +1,8 @@
 import axios from "axios";
 import { extractMessageFromReq, extractBusinessPhoneNumberIdFromReq } from "../utils/helpers.js";
-import { createWallet, getWallet, getBalance, getNativeBalance, deployMEMECoin } from "../utils/polkadot.js";
+import { createWallet, getWallet, getBalance, transferFunds, getNativeBalance, deployMEMECoin } from "../utils/polkadot.js";
+import { getFromCache } from "./redisClient.js";
+import { mint } from "../utils/deploy_meme_token.js";
 
 export const processMessage = async (req) => {
     try {
@@ -48,6 +50,50 @@ export const processMessage = async (req) => {
 
 Enjoy your new meme coin journey! Let us know if you need assistance with anything else. 🎊`;
             sendMessage(req, message, userId);
+        } else if (command.includes("/mint")) {
+            // Handle send AZERO
+            console.log("Mint meme tokens");
+            const attributes = command.split(" ");
+            const token = attributes[1] ?? "";
+            let recipient = attributes[2] ?? 0;
+            const wallet = await getWallet(userId);
+            const userTokens = await getFromCache(`contracts:${userId}:erc20`);
+            const tokens = userTokens ? JSON.parse(userTokens) : [];
+            const tokenAddress = tokens.find((item) => item.name === token || item.symbol === token || item.contractAddress === token)?.contractAddress;    
+            if (recipient.length < 15) {
+                const addresses = await getFromCache(`addressBook`);
+                const addressBook = addresses ? JSON.parse(addresses) : [];
+                recipient = addressBook.find((address) => address.userId === recipient)?.address;
+                if (!recipient) {
+                    sendMessage(req, "Recipient no. not found. Please provide a valid recipient address or mobile number.");
+                    return;
+                }
+            }
+            if (!tokenAddress) {
+                sendMessage(req, "Token not found. Please provide a valid token name, symbol or contract address.");
+                return;
+            }
+            await mint(wallet.mnemonic, tokenAddress, recipient);
+            sendMessage(req, `Minted 1 ${token} to ${recipient}`, userId);
+        } else if (command.includes("/send_azero")) {
+            // Handle send AZERO
+            console.log("Send AZERO");
+            const attributes = command.split(" ");
+            let recipient = attributes[1] ?? "";
+            const amount = attributes[2] ?? 0;
+            const wallet = await getWallet(userId);
+            if (recipient.length < 13) {
+                const addresses = await getFromCache(`addressBook`);
+                const addressBook = addresses ? JSON.parse(addresses) : [];
+                recipient = addressBook.find((address) => address.userId === recipient)?.address;
+                if (!recipient) {
+                    sendMessage(req, "Recipient no. not found. Please provide a valid recipient address or mobile number.");
+                    return;
+                }
+            }
+            const hash = await transferFunds(wallet.mnemonic, recipient, amount * 1000_000_000_000);
+            const url = `https://alephzero-testnet.subscan.io/extrinsic/${hash}`;
+            sendMessage(req, `Transfer of ${amount} Azero was successful. View details: ${url}`, userId);
         } else {
             console.log("Incoming message not matched", msg);
         }
@@ -69,13 +115,16 @@ const getCommand = async (msg) => {
             2. /create_wallet - To create a new wallet.
             3. /create_meme_coin {name} {symbol} {tokenUri} {desc} {supply} - To create a new meme coin.
             4. /get_balance - To get the balance of native token.
+            5. /send_azero {address/mobile_number} {amount} - To send AZERO tokens to another address.
+            6. /mint {memeTokenAddress/name/symbol} {beneficiary_address/mobile_number} - To mint tokens for a meme coin.
 
             ### Rules:
             - Analyze the user's input.
             - If it clearly aligns with one of the commands, output only the command text (e.g., /get_wallet).
             - If the intent is unclear or does not match any command, output \`undefined\`.
             - For the /create_meme_coin command, if any of the following are missing (\`name\`, \`symbol\`, \`tokenUri\`, \`desc\`, \`supply\`), suggest a random name and symbol, and fill in the others with a \`-\` (for example, \`/create_meme_coin {name} {symbol} - - -\`) to complete the command.
-            - Ensure there are always 5 space-separated items in the output.
+            - Ensure there are always 5 space-separated items in the output for /create_meme_coin command.
+            - Commands are case sensitive and are in lowercase always and always start with a \`/\`.
 
             ### Example Inputs and Outputs:
 
@@ -102,6 +151,18 @@ const getCommand = async (msg) => {
 
             - **Input:** 'Tell me something else.'
             - **Output:** undefined
+
+            - **Input:** 'I want to send 100 AZERO to 916265832925.'
+            - **Output:** /send_azero 916265832925 100
+
+            - **Input:** 'I want to send 100 AZERO to 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe.'
+            - **Output:** /send_azero 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe 100
+
+            - **Input:** 'I want to mint SAYA tokens for 916265832925.'
+            - **Output:** /mint SAYA 916265832925
+
+            - **Input:** 'I want to mint SAYA tokens for 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe.'
+            - **Output:** /mint SAYA 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe
 
             Now, process the input and provide the output.`,
     };
