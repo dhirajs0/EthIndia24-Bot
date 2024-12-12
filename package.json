@@ -14,10 +14,11 @@
         "@polkadot/keyring": "^13.2.3",
         "@polkadot/util-crypto": "^13.2.3",
         "axios": "^1.6.7",
+        "dedot": "^0.6.0",
         "dotenv": "^16.4.5",
         "express": "^4.21.1",
-        "redis": "^4.7.0",
-        "dedot": "^0.6.0"
+        "openai": "^4.76.1",
+        "redis": "^4.7.0"
     },
     "engines": {
         "node": ">=16.0.0"

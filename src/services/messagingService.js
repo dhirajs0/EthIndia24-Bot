@@ -3,6 +3,7 @@ import { extractMessageFromReq, extractBusinessPhoneNumberIdFromReq } from "../u
 import { createWallet, getWallet, getBalance, transferFunds, getNativeBalance, deployMEMECoin } from "../utils/polkadot.js";
 import { getFromCache } from "./redisClient.js";
 import { mint } from "../utils/deploy_meme_token.js";
+import  OpenAIApi  from 'openai';
 
 export const processMessage = async (req) => {
     try {
@@ -104,6 +105,7 @@ Enjoy your new meme coin journey! Let us know if you need assistance with anythi
 };
 
 //name, symbol, token_uri, desc, total_supply
+/* 
 const getCommand = async (msg) => {
     const apiUrl = 'https://0989-14-195-142-82.ngrok-free.app/chat';
 
@@ -173,6 +175,110 @@ const getCommand = async (msg) => {
         },
     });
     return response.data.reply;
+}
+    */
+
+
+
+
+
+//name, symbol, token_uri, desc, total_supply
+const getCommand = async (msg) => {
+    const GPT_MODEL = "gpt-4o";
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+        console.error("OPENAI_API_KEY is not set in the environment variables.");
+        process.exit(1);
+    }
+
+    const openai = new OpenAIApi({ apiKey: apiKey });
+
+    const requestData = {
+        message: msg,
+        instructions: `You are a command interpretation assistant. Given a user input, you must decide which command the user intends to execute from the following list:
+
+            1. /get_wallet - To get existing wallets the user already has.
+            2. /create_wallet - To create a new wallet.
+            3. /create_meme_coin {name} {symbol} {tokenUri} {desc} {supply} - To create a new meme coin.
+            4. /get_balance - To get the balance of native token.
+            5. /send_azero {address/mobile_number} {amount} - To send AZERO tokens to another address.
+            6. /mint {memeTokenAddress/name/symbol} {beneficiary_address/mobile_number} - To mint tokens for a meme coin.
+
+            ### Rules:
+            - Analyze the user's input.
+            - If it clearly aligns with one of the commands, output only the command text (e.g., /get_wallet).
+            - If the intent is unclear or does not match any command, output \`undefined\`.
+            - For the /create_meme_coin command, if any of the following are missing (\`name\`, \`symbol\`, \`tokenUri\`, \`desc\`, \`supply\`), suggest a random name and symbol, and fill in the others with a \`-\` (for example, \`/create_meme_coin {name} {symbol} - - -\`) to complete the command.
+            - Ensure there are always 5 space-separated items in the output for /create_meme_coin command.
+            - Commands are case sensitive and are in lowercase always and always start with a \`/\`.
+
+            ### Example Inputs and Outputs:
+
+            - **Input:** 'Show me my wallets.'
+            - **Output:** /get_wallet
+
+            - **Input:** 'I want to create a wallet.'
+            - **Output:** /create_wallet
+
+            - **Input:** 'How do I start a funny crypto token?'
+            - **Output:** /create_meme_coin - - - -
+
+            - **Input:** 'Create a meme coin called DogeCoin with symbol DOGE and supply 1000000.'
+            - **Output:** /create_meme_coin DogeCoin DOGE - - 1000000
+
+            - **Input:** 'I want to make a meme coin with symbol DOGE.'
+            - **Output:** /create_meme_coin - DOGE - - -
+
+            - **Input:** 'What's the balance of my native token?'
+            - **Output:** /get_balance
+
+            - **Input:** 'How can I make a meme coin with a random name and symbol?'
+            - **Output:** /create_meme_coin - - - -
+
+            - **Input:** 'Tell me something else.'
+            - **Output:** undefined
+
+            - **Input:** 'I want to send 100 AZERO to 916265832925.'
+            - **Output:** /send_azero 916265832925 100
+
+            - **Input:** 'I want to send 100 AZERO to 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe.'
+            - **Output:** /send_azero 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe 100
+
+            - **Input:** 'I want to mint SAYA tokens for 916265832925.'
+            - **Output:** /mint SAYA 916265832925
+
+            - **Input:** 'I want to mint SAYA tokens for 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe.'
+            - **Output:** /mint SAYA 5CJjoWpSNF926dykJxmGPRtrCuuV8pGin2xrL51stxUJCmMe
+
+            Now, process the input and provide the output.`,
+    };
+
+    try {
+        const response = await openai.createChatCompletion({
+            model: GPT_MODEL,
+            messages: [
+                { role: 'system', content: requestData.instructions || '' },
+                { role: 'user', content: msg || '' }
+            ]
+        });
+
+        console.log('Response:', response.data);
+
+        const choice = response.data.choices[0];
+  
+        const aiReply = choice.message.content;
+        console.log('AI Reply:', aiReply);
+
+        return aiReply;
+        // return res.json({ reply: aiReply });
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+        return "Internal Server Error";
+    }
+
+
+    // return response.data.reply;
 }
 
 export const markAsRead = async (req) => {
