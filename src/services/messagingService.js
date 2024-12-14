@@ -1,7 +1,7 @@
 import axios from "axios";
 import { extractMessageFromReq, extractBusinessPhoneNumberIdFromReq } from "../utils/helpers.js";
 import { createWallet, getWallet, transferFunds, getNativeBalance, deployMEMECoin } from "../utils/polkadot.js";
-import { getFromCache } from "./redisClient.js";
+import { getFromCache, saveToCacheTTL} from "./redisClient.js";
 import { mint } from "../utils/deploy_meme_token.js";
 import OpenAI from 'openai';
 
@@ -216,11 +216,18 @@ export const markAsRead = async (req) => {
     });
 };
 
-export const sendMessage = async (req, textMessage, userId) => {
+export const sendMessage = async (req, textMessage, userId) => { 
     const message = extractMessageFromReq(req);
     const businessPhoneNumberId =
         extractBusinessPhoneNumberIdFromReq(req) || process.env.BUSINESS_PHONE_NO_ID;
-
+    const today = new Date().toISOString().split('T')[0];
+    const count = parseInt(await getFromCache(`message_count${today}`)) || 0;
+    if (count >= 1000) {
+        console.log("Message limit reached");
+        return;
+    }
+    count++;
+    await saveToCacheTTL(`message_count${today}`, count.toString());
     await axios({
         method: "POST",
         url: `https://graph.facebook.com/v18.0/${businessPhoneNumberId}/messages`,
