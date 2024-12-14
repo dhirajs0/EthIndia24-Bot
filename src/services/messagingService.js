@@ -221,7 +221,7 @@ export const sendMessage = async (req, textMessage, userId) => {
     const businessPhoneNumberId =
         extractBusinessPhoneNumberIdFromReq(req) || process.env.BUSINESS_PHONE_NO_ID;
     const today = new Date().toISOString().split('T')[0];
-    const count = parseInt(await getFromCache(`message_count${today}`)) || 0;
+    let count = parseInt(await getFromCache(`message_count${today}`)) || 0;
     if (count >= 1000) {
         console.log("Message limit reached");
         return;
