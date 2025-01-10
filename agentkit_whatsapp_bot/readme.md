@@ -1,6 +1,6 @@
-# WhatsApp Crypto Bot
+# WhatsApp Crypto AI Agent
 
-A WhatsApp-based chatbot that can interact with cryptocurrency platforms using the Coinbase Developer Platform (CDP) AgentKit.
+A WhatsApp-based AI Agent that can interact with cryptocurrency platforms using the Coinbase Developer Platform (CDP) AgentKit.
 
 ## Features
 
