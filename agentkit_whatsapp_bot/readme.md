@@ -1,4 +1,4 @@
-# WhatsApp Crypto AI Agent
+# WhatsApp Onchain AI Agent
 
 A WhatsApp-based AI Agent that can interact with cryptocurrency platforms using the Coinbase Developer Platform (CDP) AgentKit.
 
